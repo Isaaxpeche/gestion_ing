@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Mis ingresos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E9EFF1;--card:#fff;--ink:#12292B;--mut:#5E7376;--in:#0E6B5C;--out:#C2503A;--line:#D3DEE0}
+@media(prefers-color-scheme:dark){:root{--bg:#0F1B1D;--card:#172629;--ink:#E6F0F0;--mut:#8CA4A7;--in:#4FD1B5;--out:#F08A74;--line:#263A3D}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,sans-serif;min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:480px;margin:0 auto;padding:20px 16px 40px}
+.hide{display:none!important}
+.saldo{padding:8px 4px 20px}.saldo small{color:var(--mut);font-size:15px}
+.saldo b{display:block;font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1.1;overflow-wrap:anywhere}
+.saldo b.neg{color:var(--out)}
+.resumen{display:flex;gap:16px;margin-top:6px;font-size:14px;color:var(--mut)}
+.i{color:var(--in);font-weight:600}.o{color:var(--out);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.tipo{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);padding:4px;border-radius:12px;margin-bottom:12px}
+button{font-family:inherit;cursor:pointer}
+.tipo button{border:0;background:transparent;color:var(--mut);font-weight:600;font-size:15px;padding:10px;border-radius:9px}
+.tipo button.on.in{background:var(--in);color:#fff}.tipo button.on.out{background:var(--out);color:#fff}
+input{width:100%;font:inherit;font-size:17px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+input:focus-visible,button:focus-visible{outline:3px solid var(--in);outline-offset:2px}
+.btn{width:100%;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:17px;background:var(--ink);color:var(--bg)}
+.link{background:none;border:0;color:var(--mut);font-size:14px;padding:10px 0;width:100%}
+h1{font-size:28px;margin:30px 4px 14px}h2{font-size:17px;margin:26px 4px 10px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line)}
+li .t{flex:1;min-width:0}li .t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li .t span{font-size:13px;color:var(--mut)}
+li .m{font-weight:700}li .m.in{color:var(--in)}li .m.out{color:var(--out)}
+li button{border:0;background:transparent;color:var(--mut);font-size:20px;padding:6px}
+.msg{font-size:14px;color:var(--out);min-height:20px;margin:4px 0}
+.vacio{color:var(--mut);padding:18px 4px}
+</style>
+</head>
+<body>
+<main>
+  <!-- Entrar -->
+  <section id="login" class="hide">
+    <h1>Mis ingresos</h1>
+    <div class="card">
+      <input id="email" type="email" autocomplete="email" placeholder="Correo" aria-label="Correo">
+      <input id="pass" type="password" autocomplete="current-password" placeholder="Contraseña (mínimo 6)" aria-label="Contraseña">
+      <p class="msg" id="msgLogin"></p>
+      <button class="btn" id="bEntrar" type="button">Entrar</button>
+      <button class="link" id="bCrear" type="button">Crear cuenta nueva</button>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="app" class="hide">
+    <div class="saldo">
+      <small>Saldo actual</small>
+      <b id="saldo">$0</b>
+      <div class="resumen"><span>Entró <span class="i" id="tin">$0</span></span><span>Salió <span class="o" id="tout">$0</span></span></div>
+    </div>
+    <div class="card">
+      <div class="tipo" role="group" aria-label="Tipo de movimiento">
+        <button type="button" class="on in" id="bIn">Ingreso</button>
+        <button type="button" id="bOut">Salida</button>
+      </div>
+      <input id="monto" type="number" inputmode="decimal" min="0" placeholder="Monto" aria-label="Monto">
+      <input id="nota" type="text" maxlength="60" placeholder="Para qué fue (opcional)" aria-label="Nota">
+      <p class="msg" id="msgApp"></p>
+      <button class="btn" id="bGuardar" type="button">Agregar ingreso</button>
+    </div>
+    <h2>Movimientos</h2>
+    <ul id="lista"></ul>
+    <button class="link" id="bSalir" type="button">Cerrar sesión</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// 1) Pega aquí los datos de tu proyecto (Supabase > Project Settings > API)
+const SUPABASE_URL = 'https://lvyxbsbgujhtmyfbvpff.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_DcDI6FHHNKOxLY5SMDigSw_71y1Eio7';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const fmt = new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0});
+let movs = [], tipo = 'in';
+
+function vista(sesion){
+  $('login').classList.toggle('hide', !!sesion);
+  $('app').classList.toggle('hide', !sesion);
+  if(sesion) cargar();
+}
+
+async function cargar(){
+  const {data,error} = await sb.from('movimientos').select('*').order('created_at',{ascending:false});
+  if(error){ $('msgApp').textContent = 'No se pudieron cargar los datos: ' + error.message; return; }
+  movs = data.map(m => ({...m, monto:Number(m.monto)}));
+  render();
+}
+
+function render(){
+  let ti=0, to=0;
+  movs.forEach(m => m.tipo==='in' ? ti+=m.monto : to+=m.monto);
+  const s = ti-to;
+  $('saldo').textContent = fmt.format(s);
+  $('saldo').className = s<0 ? 'neg' : '';
+  $('tin').textContent = fmt.format(ti);
+  $('tout').textContent = fmt.format(to);
+  const ul = $('lista'); ul.textContent = '';
+  if(!movs.length){
+    const p = document.createElement('li'); p.className='vacio';
+    p.textContent = 'Aún no hay movimientos. Agrega tu primer ingreso arriba.';
+    ul.appendChild(p); return;
+  }
+  movs.forEach(m => {
+    const li = document.createElement('li');
+    const t = document.createElement('div'); t.className='t';
+    const b = document.createElement('b'); b.textContent = m.nota || (m.tipo==='in'?'Ingreso':'Salida');
+    const sp = document.createElement('span');
+    sp.textContent = new Date(m.created_at).toLocaleDateString('es-CO',{day:'numeric',month:'short',year:'numeric'});
+    t.append(b,sp);
+    const mm = document.createElement('div'); mm.className='m '+m.tipo;
+    mm.textContent = (m.tipo==='in'?'+ ':'− ') + fmt.format(m.monto);
+    const x = document.createElement('button'); x.type='button'; x.textContent='×';
+    x.setAttribute('aria-label','Borrar movimiento');
+    x.onclick = () => borrar(m.id);
+    li.append(t,mm,x); ul.appendChild(li);
+  });
+}
+
+function setTipo(t){
+  tipo = t;
+  $('bIn').className = t==='in' ? 'on in' : '';
+  $('bOut').className = t==='out' ? 'on out' : '';
+  $('bGuardar').textContent = t==='in' ? 'Agregar ingreso' : 'Agregar salida';
+}
+$('bIn').onclick = () => setTipo('in');
+$('bOut').onclick = () => setTipo('out');
+
+$('bGuardar').onclick = async () => {
+  const monto = parseFloat($('monto').value);
+  if(!(monto>0)){ $('monto').focus(); return; }
+  $('msgApp').textContent = '';
+  const {error} = await sb.from('movimientos').insert({tipo, monto, nota:$('nota').value.trim()});
+  if(error){ $('msgApp').textContent = 'No se pudo guardar: ' + error.message; return; }
+  $('monto').value=''; $('nota').value='';
+  cargar();
+};
+
+async function borrar(id){
+  const {error} = await sb.from('movimientos').delete().eq('id',id);
+  if(error){ $('msgApp').textContent = 'No se pudo borrar: ' + error.message; return; }
+  cargar();
+}
+
+$('bEntrar').onclick = async () => {
+  $('msgLogin').textContent = '';
+  const {error} = await sb.auth.signInWithPassword({email:$('email').value.trim(), password:$('pass').value});
+  if(error) $('msgLogin').textContent = 'Correo o contraseña incorrectos.';
+};
+$('bCrear').onclick = async () => {
+  $('msgLogin').textContent = '';
+  const {data,error} = await sb.auth.signUp({email:$('email').value.trim(), password:$('pass').value});
+  if(error){ $('msgLogin').textContent = error.message; return; }
+  if(!data.session) $('msgLogin').textContent = 'Revisa tu correo para confirmar la cuenta y luego entra.';
+};
+$('bSalir').onclick = () => sb.auth.signOut();
+
+sb.auth.onAuthStateChange((_e, s) => vista(s));
+sb.auth.getSession().then(({data}) => vista(data.session));
+</script>
+</body>
+</html>
