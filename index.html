@@ -34,6 +34,10 @@ li .t{flex:1;min-width:0}li .t b{display:block;font-weight:600;overflow:hidden;t
 li .t span{font-size:13px;color:var(--mut)}
 li .m{font-weight:700}li .m.in{color:var(--in)}li .m.out{color:var(--out)}
 li button{border:0;background:transparent;color:var(--mut);font-size:20px;padding:6px}
+.rapidos{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px}
+.rapidos button{border:1px solid var(--line);background:var(--bg);color:var(--ink);font-weight:600;font-size:14px;padding:11px 0;border-radius:10px}
+.rapidos button:active{background:var(--line)}
+.rapidos .borrar{grid-column:1/-1;color:var(--out);font-size:14px}
 .msg{font-size:14px;color:var(--out);min-height:20px;margin:4px 0}
 .vacio{color:var(--mut);padding:18px 4px}
 </style>
@@ -65,6 +69,7 @@ li button{border:0;background:transparent;color:var(--mut);font-size:20px;paddin
         <button type="button" id="bOut">Salida</button>
       </div>
       <input id="monto" type="number" inputmode="decimal" min="0" placeholder="Monto" aria-label="Monto">
+      <div class="rapidos" id="rapidos" aria-label="Montos rápidos"></div>
       <input id="nota" type="text" maxlength="60" placeholder="Para qué fue (opcional)" aria-label="Nota">
       <p class="msg" id="msgApp"></p>
       <button class="btn" id="bGuardar" type="button">Agregar ingreso</button>
@@ -138,6 +143,16 @@ function setTipo(t){
 $('bIn').onclick = () => setTipo('in');
 $('bOut').onclick = () => setTipo('out');
 
+for(let v=1000; v<=10000; v+=1000){
+  const b = document.createElement('button'); b.type='button';
+  b.textContent = (v/1000)+'.000';
+  b.onclick = () => { $('monto').value = (parseFloat($('monto').value)||0) + v; };
+  $('rapidos').appendChild(b);
+}
+const bb = document.createElement('button'); bb.type='button'; bb.className='borrar'; bb.textContent='Borrar monto';
+bb.onclick = () => { $('monto').value=''; };
+$('rapidos').appendChild(bb);
+
 $('bGuardar').onclick = async () => {
   const monto = parseFloat($('monto').value);
   if(!(monto>0)){ $('monto').focus(); return; }
@@ -156,11 +171,13 @@ async function borrar(id){
 
 $('bEntrar').onclick = async () => {
   $('msgLogin').textContent = '';
+  if(!$('email').value.trim() || !$('pass').value){ $('msgLogin').textContent = 'Escribe tu correo y tu contraseña.'; return; }
   const {error} = await sb.auth.signInWithPassword({email:$('email').value.trim(), password:$('pass').value});
   if(error) $('msgLogin').textContent = 'Correo o contraseña incorrectos.';
 };
 $('bCrear').onclick = async () => {
   $('msgLogin').textContent = '';
+  if(!$('email').value.trim() || $('pass').value.length < 6){ $('msgLogin').textContent = 'Escribe tu correo y una contraseña de mínimo 6 caracteres.'; return; }
   const {data,error} = await sb.auth.signUp({email:$('email').value.trim(), password:$('pass').value});
   if(error){ $('msgLogin').textContent = error.message; return; }
   if(!data.session) $('msgLogin').textContent = 'Revisa tu correo para confirmar la cuenta y luego entra.';
